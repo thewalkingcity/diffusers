@@ -157,6 +157,9 @@ def parse_args(input_args=None):
     )
     parser.add_argument("--train_text_encoder", action="store_true", help="Whether to train the text encoder")
     parser.add_argument(
+        "--train_text_encoder_steps", type=int, default=-1, help="Number of steps to train the text encoder."
+    )
+    parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
     )
     parser.add_argument(
@@ -657,11 +660,14 @@ def main(args):
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
     # Afterwards we recalculate our number of training epochs
     args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
-
+    
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
         accelerator.init_trackers("dreambooth")
+    
+    # allow text encoder to be trained for X number of epochs
+    train_text_encoder_epochs = args.train_text_encoder_steps / num_update_steps_per_epoch
 
     # Train!
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -731,8 +737,9 @@ def main(args):
     text_enc_context = nullcontext() if args.train_text_encoder else torch.no_grad()
     for epoch in range(args.num_train_epochs):
         unet.train()
-        if args.train_text_encoder:
+        if args.train_text_encoder and (train_text_encoder_epochs <= 0 or epoch < train_text_encoder_epochs) :
             text_encoder.train()
+        
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(unet):
                 # Convert images to latent space
