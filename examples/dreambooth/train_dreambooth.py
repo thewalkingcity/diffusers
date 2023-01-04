@@ -667,7 +667,7 @@ def main(args):
         accelerator.init_trackers("dreambooth")
     
     # allow text encoder to be trained for X number of epochs
-    train_text_encoder_epochs = args.train_text_encoder_steps / num_update_steps_per_epoch
+    train_text_encoder_epochs = math.ceil(args.train_text_encoder_steps / num_update_steps_per_epoch)
 
     # Train!
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
